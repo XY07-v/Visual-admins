@@ -5,127 +5,132 @@ from pymongo import MongoClient
 
 app = Flask(__name__)
 
-# --- CONFIGURACIÓN DE ESTILOS ---
+# --- DISEÑO EJECUTIVO (MODERNO E INTERACTIVO) ---
 CSS = """
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
-    body { font-family: 'Poppins', sans-serif; background: #f0f4f8; margin: 0; padding: 20px; color: #1a202c; }
-    .header { text-align: center; padding: 30px 0; border-bottom: 3px solid #0063ad; margin-bottom: 40px; background: white; border-radius: 0 0 20px 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    .header h1 { color: #0063ad; margin: 0; font-size: 28px; letter-spacing: 1px; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
     
-    .fecha-badge { background: #0063ad; color: white; padding: 10px 25px; border-radius: 50px; font-weight: 600; display: inline-block; margin: 20px 0; box-shadow: 0 4px 10px rgba(0,99,173,0.2); }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 30px; }
+    body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #1e293b; margin: 0; padding: 40px 20px; }
+    .container { max-width: 1000px; margin: auto; }
     
-    .card { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.08); transition: transform 0.3s ease; display: flex; flex-direction: column; }
-    .card:hover { transform: translateY(-10px); }
-    
-    .img-box { width: 100%; height: 250px; background: #e2e8f0; position: relative; }
-    .img-box img { width: 100%; height: 100%; object-fit: cover; }
-    .name-tag { position: absolute; bottom: 0; width: 100%; background: linear-gradient(transparent, rgba(0,0,0,0.9)); color: white; padding: 20px 15px 10px 15px; box-sizing: border-box; }
-    .name-tag b { font-size: 1.2em; display: block; }
-    .name-tag span { font-size: 0.85em; opacity: 0.8; }
+    .header { margin-bottom: 40px; border-left: 5px solid #0063ad; padding-left: 20px; }
+    .header h1 { margin: 0; font-size: 26px; color: #0f172a; letter-spacing: -0.5px; }
+    .header p { color: #64748b; margin: 5px 0 0 0; font-size: 14px; }
 
-    .notes { padding: 20px; flex-grow: 1; }
-    .note-row { border-left: 4px solid #00a1e1; padding-left: 15px; margin-bottom: 20px; position: relative; }
-    .note-time { font-size: 0.75em; color: #a0aec0; font-weight: 600; text-transform: uppercase; }
-    .note-act { font-weight: 600; color: #2d3748; margin: 5px 0; display: block; font-size: 1.05em; }
-    .note-res { font-size: 14px; color: #4a5568; line-height: 1.5; font-style: italic; }
+    .fecha-divider { margin: 30px 0 15px 0; font-size: 13px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; }
+    .fecha-divider::after { content: ""; flex: 1; height: 1px; background: #e2e8f0; margin-left: 15px; }
+
+    /* Estilo de la Lista */
+    .registro-item { background: white; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 10px; overflow: hidden; transition: all 0.2s ease; cursor: pointer; }
+    .registro-item:hover { border-color: #0063ad; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
     
-    .error-box { background: #fff5f5; color: #c53030; padding: 20px; border-radius: 10px; border: 1px solid #feb2b2; max-width: 600px; margin: 50px auto; }
+    /* Cabecera del Registro (Lo que siempre se ve) */
+    .registro-header { padding: 18px 25px; display: flex; align-items: center; justify-content: space-between; }
+    .user-info { display: flex; align-items: center; gap: 15px; }
+    .user-initials { width: 40px; height: 40px; background: #e0f2fe; color: #0369a1; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+    .user-text b { display: block; font-size: 15px; color: #1e293b; }
+    .user-text span { font-size: 12px; color: #64748b; }
+    
+    .actividad-tag { background: #f1f5f9; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; color: #475569; }
+    .hora-tag { font-size: 12px; color: #94a3b8; font-weight: 500; }
+
+    /* Contenido Expandible (Detalles ocultos) */
+    .registro-details { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; background: #fcfdfe; }
+    .registro-item.active .registro-details { max-height: 800px; border-top: 1px solid #f1f5f9; }
+    
+    .details-inner { padding: 25px; display: grid; grid-template-columns: 280px 1fr; gap: 30px; }
+    .photo-frame { width: 100%; border-radius: 12px; overflow: hidden; border: 4px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .photo-frame img { width: 100%; height: auto; display: block; }
+    
+    .data-sheet h3 { margin-top: 0; font-size: 14px; color: #0063ad; text-transform: uppercase; letter-spacing: 0.5px; }
+    .data-sheet p { font-size: 15px; line-height: 1.6; color: #334155; white-space: pre-line; }
+
+    @media (max-width: 768px) {
+        .details-inner { grid-template-columns: 1fr; }
+        .registro-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+        .hora-tag { order: -1; }
+    }
 </style>
 """
 
 @app.route('/')
-def visor_total():
+def visor_ejecutivo():
     try:
-        # Intentar conectar a MongoDB
         MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://ANDRES_VANEGAS:CF32fUhOhrj70dY5@cluster0.dtureen.mongodb.net/?appName=Cluster0")
         client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
         db = client['NestleDB']
         puntos_col = db['Adminidtrativo']
         
-        # Obtener todos los registros (orden: fecha más reciente primero)
-        registros = list(puntos_col.find().sort([("fecha", -1), ("nombre", 1)]))
-        
-        if not registros:
-            return render_template_string(f"<html><head>{CSS}</head><body><div style='text-align:center; padding:100px;'><h3>Base de datos vacía</h3><p>No se encontraron registros en 'Adminidtrativo'.</p></div></body></html>")
+        registros = list(puntos_col.find().sort("fecha", -1))
 
-        # Agrupar por Día -> Cédula
-        data_final = {}
+        # Agrupar por día para los separadores
+        agrupado = {}
         for r in registros:
-            f_full = r.get('fecha', '2026-01-01 00:00:00')
-            # Manejar si la fecha ya es un string o un objeto datetime
-            str_fecha = f_full if isinstance(f_full, str) else f_full.strftime("%Y-%m-%d %H:%M:%S")
-            dia = str_fecha.split(' ')[0]
-            hora = str_fecha.split(' ')[1] if ' ' in str_fecha else "00:00"
-            
-            if dia not in data_final: data_final[dia] = {}
-            
-            ced = r.get('cedula', 'S/N')
-            if ced not in data_final[dia]:
-                data_final[dia][ced] = {
-                    "nombre": r.get('nombre', 'Desconocido'),
-                    "foto": r.get('foto'),
-                    "items": []
-                }
-            
-            data_final[dia][ced]["items"].append({
-                "hora": hora,
-                "actividad": r.get('actividad', 'Sin actividad'),
-                "resumen": r.get('resumen', 'Sin resumen')
-            })
+            f = r.get('fecha', '2026-01-01 00:00:00')
+            dia = f.split(' ')[0]
+            if dia not in agrupado: agrupado[dia] = []
+            agrupado[dia].append(r)
 
-        # Construir la interfaz
-        html = f"<html><head><meta name='viewport' content='width=device-width, initial-scale=1'>{CSS}</head><body>"
-        html += "<div class='header'><h1>REPORTES ADMINISTRATIVOS NESTLÉ</h1></div>"
+        html = f"""
+        <html>
+        <head>
+            <meta name='viewport' content='width=device-width, initial-scale=1'>
+            {CSS}
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <h1>Consola de Gestión Administrativa</h1>
+                    <p>Monitoreo de actividades y validación de presencia - Nestlé</p>
+                </div>
+        """
 
-        for dia, personas in data_final.items():
-            html += f"<div class='fecha-badge'>📅 {dia}</div>"
-            html += "<div class='grid'>"
+        for dia, items in agrupado.items():
+            html += f"<div class='fecha-divider'>{dia}</div>"
             
-            for ced, info in personas.items():
-                foto_url = info['foto'] if info['foto'] else "https://via.placeholder.com/400x300?text=Sin+Selfie"
+            for i, r in enumerate(items):
+                nombre = r.get('nombre', 'Colaborador')
+                iniciales = "".join([n[0] for n in nombre.split()[:2]])
+                hora = r.get('fecha', '').split(' ')[1] if ' ' in r.get('fecha','') else '--:--'
+                foto = r.get('foto', '')
+                
                 html += f"""
-                <div class='card'>
-                    <div class='img-box'>
-                        <img src='{foto_url}' loading='lazy'>
-                        <div class='name-tag'>
-                            <b>{info['nombre']}</b>
-                            <span>CC: {ced}</span>
+                <div class='registro-item' onclick='this.classList.toggle("active")'>
+                    <div class='registro-header'>
+                        <div class='user-info'>
+                            <div class='user-initials'>{iniciales}</div>
+                            <div class='user-text'>
+                                <b>{nombre}</b>
+                                <span>CC: {r.get('cedula','---')}</span>
+                            </div>
+                        </div>
+                        <div class='actividad-tag'>{r.get('actividad','Sin actividad')}</div>
+                        <div class='hora-tag'>{hora}</div>
+                    </div>
+                    <div class='registro-details'>
+                        <div class='details-inner'>
+                            <div class='photo-frame'>
+                                <img src='{foto if foto else "https://via.placeholder.com/300x400?text=Sin+Foto"}'>
+                            </div>
+                            <div class='data-sheet'>
+                                <h3>Resumen de Actividad</h3>
+                                <p>{r.get('resumen','No se proporcionaron detalles adicionales.')}</p>
+                                <hr style='border:0; border-top:1px solid #e2e8f0; margin:20px 0;'>
+                                <div style='font-size:12px; color:#94a3b8;'>
+                                    Validación de identidad vía Selfie realizada correctamente.
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class='notes'>
+                </div>
                 """
-                for item in info['items']:
-                    html += f"""
-                        <div class='note-row'>
-                            <span class='note-time'>🕒 {item['hora']}</span>
-                            <span class='note-act'>{item['actividad']}</span>
-                            <span class='note-res'>"{item['resumen']}"</span>
-                        </div>
-                    """
-                html += "</div></div>"
-            html += "</div>"
         
-        html += "</body></html>"
+        html += "</div></body></html>"
         return render_template_string(html)
 
     except Exception as e:
-        # Esto atrapará el error 500 y te dirá qué pasó (IP bloqueada, mala URI, etc.)
-        return render_template_string(f"""
-        <html><head>{CSS}</head><body>
-            <div class='error-box'>
-                <h2>❌ Error de Conexión</h2>
-                <p>No se pudo conectar a MongoDB. Revisa lo siguiente:</p>
-                <ul>
-                    <li>Que tu IP esté autorizada en MongoDB Atlas (Network Access -> 0.0.0.0/0).</li>
-                    <li>Que la contraseña en la URI sea correcta.</li>
-                </ul>
-                <hr>
-                <small>Detalle técnico: {str(e)}</small>
-            </div>
-        </body></html>
-        """)
+        return f"<div style='padding:40px; color:red; font-family:sans-serif;'><b>Error Crítico:</b> {str(e)}</div>"
 
 if __name__ == "__main__":
     app.run()
+    
