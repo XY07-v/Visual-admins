@@ -1,165 +1,165 @@
 import os
 import datetime
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, request
 from pymongo import MongoClient
 
 app = Flask(__name__)
 
-# --- DISEÑO EJECUTIVO PREMIUM ---
+# --- DISEÑO EJECUTIVO OPTIMIZADO ---
 CSS = """
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+    body { font-family: 'Inter', sans-serif; background: #f1f5f9; color: #1e293b; margin: 0; padding: 20px; }
+    .container { max-width: 900px; margin: auto; }
     
-    body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #1e293b; margin: 0; padding: 40px 20px; }
-    .container { max-width: 1000px; margin: auto; }
-    
-    .header { margin-bottom: 40px; border-left: 5px solid #0063ad; padding-left: 20px; }
-    .header h1 { margin: 0; font-size: 26px; color: #0f172a; letter-spacing: -0.5px; }
-    .header p { color: #64748b; margin: 5px 0 0 0; font-size: 14px; }
+    /* Filtro de Fecha */
+    .filter-bar { background: white; padding: 20px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 15px; }
+    .filter-bar input { padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-family: inherit; }
+    .filter-bar button { background: #0063ad; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    .filter-bar a { font-size: 13px; color: #64748b; text-decoration: none; }
 
-    .fecha-divider { margin: 30px 0 15px 0; font-size: 13px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; }
-    .fecha-divider::after { content: ""; flex: 1; height: 1px; background: #e2e8f0; margin-left: 15px; }
+    .header-main { margin-bottom: 25px; }
+    .header-main h1 { font-size: 22px; color: #0f172a; margin: 0; }
 
-    .registro-item { background: white; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 10px; overflow: hidden; transition: all 0.2s ease; cursor: pointer; }
-    .registro-item:hover { border-color: #0063ad; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-    
-    .registro-header { padding: 18px 25px; display: flex; align-items: center; justify-content: space-between; }
-    .user-info { display: flex; align-items: center; gap: 15px; }
-    .user-initials { width: 40px; height: 40px; background: #e0f2fe; color: #0369a1; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
-    .user-text b { display: block; font-size: 15px; color: #1e293b; }
-    .user-text span { font-size: 12px; color: #64748b; }
-    
-    .actividad-tag { background: #f1f5f9; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; color: #475569; }
-    .hora-tag { font-size: 12px; color: #94a3b8; font-weight: 500; }
+    .fecha-label { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 20px 0 10px 10px; display: block; }
 
-    .registro-details { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out; background: #fcfdfe; }
-    .registro-item.active .registro-details { max-height: 1000px; border-top: 1px solid #f1f5f9; }
+    /* Tarjeta Agrupada */
+    .card-resumen { background: white; border: 1px solid #e2e8f0; border-radius: 16px; margin-bottom: 15px; overflow: hidden; cursor: pointer; transition: 0.2s; }
+    .card-resumen:hover { border-color: #0063ad; }
     
-    .details-inner { padding: 25px; display: grid; grid-template-columns: 280px 1fr; gap: 30px; }
-    .photo-frame { width: 100%; border-radius: 12px; overflow: hidden; border: 4px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    .photo-frame img { width: 100%; height: auto; display: block; background: #f1f5f9; }
+    .card-visible { padding: 20px; display: flex; align-items: center; justify-content: space-between; }
+    .user-profile { display: flex; align-items: center; gap: 15px; }
+    .avatar { width: 45px; height: 45px; background: #0063ad; color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+    .user-data b { display: block; font-size: 15px; }
+    .user-data span { font-size: 12px; color: #64748b; }
     
-    .data-sheet h3 { margin-top: 0; font-size: 14px; color: #0063ad; text-transform: uppercase; letter-spacing: 0.5px; }
-    .data-sheet p { font-size: 15px; line-height: 1.6; color: #334155; white-space: pre-line; margin-bottom: 20px; }
+    .badge-conteo { background: #e0f2fe; color: #0369a1; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
 
-    @media (max-width: 768px) {
-        .details-inner { grid-template-columns: 1fr; }
-        .registro-header { flex-direction: column; align-items: flex-start; gap: 10px; }
-        .hora-tag { order: -1; }
-    }
+    /* Detalles Expandidos */
+    .card-hidden { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; background: #fafcfe; }
+    .card-resumen.active .card-hidden { max-height: 1200px; border-top: 1px solid #f1f5f9; }
+    
+    .detail-grid { padding: 25px; display: grid; grid-template-columns: 250px 1fr; gap: 25px; }
+    .photo-side img { width: 100%; border-radius: 12px; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    
+    .activities-list { margin: 0; padding: 0; list-style: none; }
+    .activity-item { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #edf2f7; }
+    .activity-item:last-child { border: none; }
+    .act-title { font-weight: 700; color: #0063ad; font-size: 14px; display: block; margin-bottom: 4px; }
+    .act-desc { font-size: 13.5px; color: #475569; line-height: 1.5; }
+
+    @media (max-width: 700px) { .detail-grid { grid-template-columns: 1fr; } }
 </style>
 """
 
 @app.route('/')
-def visor_ejecutivo():
+def visor_optimizado():
     try:
-        # Configuración de conexión (Asegúrate de tener MONGO_URI en Render)
+        # Conexión
         MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://ANDRES_VANEGAS:CF32fUhOhrj70dY5@cluster0.dtureen.mongodb.net/?appName=Cluster0")
         client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
         db = client['NestleDB']
         puntos_col = db['Adminidtrativo']
-        
-        # Obtenemos registros ordenados por fecha
-        registros = list(puntos_col.find().sort("fecha", -1))
 
-        if not registros:
-            return "<html><body style='text-align:center; padding-top:100px; font-family:sans-serif;'><h2>Sin registros</h2><p>No se encontraron datos en la colección 'Adminidtrativo'.</p></body></html>"
+        # Filtro de fecha
+        fecha_busqueda = request.args.get('fecha_filtro', '')
+        query = {}
+        if fecha_busqueda:
+            # Busca registros que comiencen con la fecha elegida (YYYY-MM-DD)
+            query = {"fecha": {"$regex": f"^{fecha_busqueda}"}}
 
-        # Agrupación lógica por día
+        registros = list(puntos_col.find(query).sort("fecha", -1))
+
+        # AGRUPACIÓN MAESTRA: Día -> Persona
+        # Estructura: { "2026-04-06": { "123": {"nombre": "Ana", "foto": "...", "notas": [...]} } }
         agrupado = {}
         for r in registros:
             f_raw = r.get('fecha')
-            
-            # --- MANEJO DE ERROR DATETIME.SPLIT ---
-            if isinstance(f_raw, datetime.datetime):
-                f_str = f_raw.strftime("%Y-%m-%d %H:%M:%S")
-            elif f_raw:
-                f_str = str(f_raw)
-            else:
-                f_str = "2026-01-01 00:00:00"
-            
+            f_str = f_raw.strftime("%Y-%m-%d %H:%M:%S") if isinstance(f_raw, datetime.datetime) else str(f_raw)
             dia = f_str.split(' ')[0]
-            if dia not in agrupado:
-                agrupado[dia] = []
-            
-            r['fecha_formateada'] = f_str
-            agrupado[dia].append(r)
+            ced = r.get('cedula', 'S/C')
 
-        # Generación del HTML
+            if dia not in agrupado: agrupado[dia] = {}
+            if ced not in agrupado[dia]:
+                agrupado[dia][ced] = {
+                    "nombre": r.get('nombre', 'Usuario'),
+                    "foto": r.get('foto'),
+                    "notas": []
+                }
+            
+            agrupado[dia][ced]["notas"].append({
+                "act": r.get('actividad', 'N/A'),
+                "res": r.get('resumen', 'N/A')
+            })
+
         html = f"""
         <html>
         <head>
-            <title>Panel Administrativo Nestlé</title>
             <meta name='viewport' content='width=device-width, initial-scale=1'>
             {CSS}
         </head>
         <body>
             <div class='container'>
-                <div class='header'>
-                    <h1>Consola de Gestión Administrativa</h1>
-                    <p>Visor ejecutivo de reportes y validación de personal</p>
+                <div class='header-main'>
+                    <h1>Panel de Control Nestlé</h1>
                 </div>
+
+                <form class='filter-bar' method='GET'>
+                    <input type='date' name='fecha_filtro' value='{fecha_busqueda}'>
+                    <button type='submit'>Filtrar</button>
+                    <a href='/'>Limpiar</a>
+                </form>
         """
 
-        for dia, items in agrupado.items():
-            html += f"<div class='fecha-divider'>{dia}</div>"
-            
-            for r in items:
-                nombre = r.get('nombre', 'Usuario Nestlé')
-                # Iniciales dinámicas
-                parts = nombre.split()
-                ini = (parts[0][0] + parts[1][0]).upper() if len(parts) > 1 else parts[0][0].upper()
-                
-                # Hora extraída del string formateado
-                f_text = r['fecha_formateada']
-                hora = f_text.split(' ')[1] if ' ' in f_text else '--:--'
-                
-                foto = r.get('foto', '')
+        if not agrupado:
+            html += "<div style='text-align:center; padding:50px; color:#94a3b8;'>No hay registros para este criterio.</div>"
 
+        for dia, personas in agrupado.items():
+            html += f"<span class='fecha-label'>{dia}</span>"
+            for ced, data in personas.items():
+                iniciales = "".join([n[0] for n in data['nombre'].split()[:2]]).upper()
+                conteo = len(data['notas'])
+                
                 html += f"""
-                <div class='registro-item' onclick='this.classList.toggle("active")'>
-                    <div class='registro-header'>
-                        <div class='user-info'>
-                            <div class='user-initials'>{ini}</div>
-                            <div class='user-text'>
-                                <b>{nombre}</b>
-                                <span>CC: {r.get('cedula','---')}</span>
+                <div class='card-resumen' onclick='this.classList.toggle("active")'>
+                    <div class='card-visible'>
+                        <div class='user-profile'>
+                            <div class='avatar'>{iniciales}</div>
+                            <div class='user-data'>
+                                <b>{data['nombre']}</b>
+                                <span>CC: {ced}</span>
                             </div>
                         </div>
-                        <div class='actividad-tag'>{r.get('actividad','General')}</div>
-                        <div class='hora-tag'>{hora}</div>
+                        <div class='badge-conteo'>{conteo} actividades registradas</div>
                     </div>
-                    <div class='registro-details'>
-                        <div class='details-inner'>
-                            <div class='photo-frame'>
-                                <img src='{foto if foto else "https://via.placeholder.com/300x400?text=Sin+Selfie"}' loading='lazy'>
+                    <div class='card-hidden'>
+                        <div class='detail-grid'>
+                            <div class='photo-side'>
+                                <img src='{data['foto'] if data['foto'] else "https://via.placeholder.com/300x400?text=Sin+Foto"}' loading='lazy'>
                             </div>
-                            <div class='data-sheet'>
-                                <h3>Detalle de la Jornada</h3>
-                                <p>{r.get('resumen','Sin resumen detallado proporcionado.')}</p>
-                                <hr style='border:0; border-top:1px solid #e2e8f0; margin:20px 0;'>
-                                <div style='font-size:12px; color:#94a3b8; font-style: italic;'>
-                                    Registro ingresado el {f_text}. Identidad validada mediante captura biométrica.
-                                </div>
+                            <div class='activities-side'>
+                                <ul class='activities-list'>
+                """
+                for n in data['notas']:
+                    html += f"""
+                                    <li class='activity-item'>
+                                        <span class='act-title'>{n['act']}</span>
+                                        <span class='act-desc'>{n['res']}</span>
+                                    </li>
+                    """
+                html += """
+                                </ul>
                             </div>
                         </div>
                     </div>
                 </div>
                 """
-        
-        html += """
-            </div>
-            <script>
-                // Script opcional para cerrar otros al abrir uno (estilo acordeón puro)
-                // Actualmente permite abrir varios a la vez para comparar.
-            </script>
-        </body>
-        </html>
-        """
+
+        html += "</div></body></html>"
         return render_template_string(html)
 
     except Exception as e:
-        return f"<div style='padding:50px; color:#e11d48; font-family:sans-serif; background:#fff1f2; border:1px solid #fda4af; border-radius:12px; max-width:600px; margin:auto; margin-top:50px;'><b>Error de Sistema:</b> {str(e)}</div>"
+        return f"<div style='padding:30px; background:#fee2e2; color:#b91c1c; border-radius:10px;'><b>Error de sistema:</b> {str(e)}</div>"
 
 if __name__ == "__main__":
     app.run()
