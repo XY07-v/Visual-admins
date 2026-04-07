@@ -5,112 +5,127 @@ from pymongo import MongoClient
 
 app = Flask(__name__)
 
-# --- CONEXIÓN MONGODB ---
-MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://ANDRES_VANEGAS:CF32fUhOhrj70dY5@cluster0.dtureen.mongodb.net/?appName=Cluster0")
-client = MongoClient(MONGO_URI)
-db = client['NestleDB']
-puntos_col = db['Adminidtrativo']
-
-# --- DISEÑO UI PREMIUM ---
+# --- CONFIGURACIÓN DE ESTILOS ---
 CSS = """
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
-    body { font-family: 'Poppins', sans-serif; background: #f4f7fa; margin: 0; padding: 20px; color: #333; }
-    .header { text-align: center; padding: 20px 0; margin-bottom: 30px; border-bottom: 2px solid #0063ad; }
-    .header h1 { color: #0063ad; margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
+    body { font-family: 'Poppins', sans-serif; background: #f0f4f8; margin: 0; padding: 20px; color: #1a202c; }
+    .header { text-align: center; padding: 30px 0; border-bottom: 3px solid #0063ad; margin-bottom: 40px; background: white; border-radius: 0 0 20px 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .header h1 { color: #0063ad; margin: 0; font-size: 28px; letter-spacing: 1px; }
     
-    .fecha-section { margin-bottom: 50px; }
-    .fecha-badge { background: #0063ad; color: white; padding: 8px 25px; border-radius: 30px; font-weight: 600; display: inline-block; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .fecha-badge { background: #0063ad; color: white; padding: 10px 25px; border-radius: 50px; font-weight: 600; display: inline-block; margin: 20px 0; box-shadow: 0 4px 10px rgba(0,99,173,0.2); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 30px; }
     
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 25px; }
+    .card { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.08); transition: transform 0.3s ease; display: flex; flex-direction: column; }
+    .card:hover { transform: translateY(-10px); }
     
-    .card { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 20px rgba(0,0,0,0.05); transition: 0.3s; display: flex; flex-direction: column; }
-    .card:hover { transform: translateY(-8px); box-shadow: 0 15px 30px rgba(0,0,0,0.1); }
-    
-    .img-container { width: 100%; height: 220px; background: #eee; position: relative; }
-    .img-container img { width: 100%; height: 100%; object-fit: cover; }
-    .overlay-name { position: absolute; bottom: 0; width: 100%; background: linear-gradient(transparent, rgba(0,0,0,0.8)); color: white; padding: 15px; box-sizing: border-box; }
-    .overlay-name b { font-size: 1.1em; display: block; }
-    .overlay-name span { font-size: 0.8em; opacity: 0.9; }
+    .img-box { width: 100%; height: 250px; background: #e2e8f0; position: relative; }
+    .img-box img { width: 100%; height: 100%; object-fit: cover; }
+    .name-tag { position: absolute; bottom: 0; width: 100%; background: linear-gradient(transparent, rgba(0,0,0,0.9)); color: white; padding: 20px 15px 10px 15px; box-sizing: border-box; }
+    .name-tag b { font-size: 1.2em; display: block; }
+    .name-tag span { font-size: 0.85em; opacity: 0.8; }
 
-    .content { padding: 15px; flex-grow: 1; }
-    .entry { border-left: 3px solid #00a1e1; padding-left: 12px; margin-bottom: 15px; }
-    .entry-time { font-size: 11px; color: #999; font-weight: 600; }
-    .entry-act { font-weight: 600; color: #0063ad; margin: 3px 0; display: block; }
-    .entry-res { font-size: 13px; color: #666; line-height: 1.4; }
+    .notes { padding: 20px; flex-grow: 1; }
+    .note-row { border-left: 4px solid #00a1e1; padding-left: 15px; margin-bottom: 20px; position: relative; }
+    .note-time { font-size: 0.75em; color: #a0aec0; font-weight: 600; text-transform: uppercase; }
+    .note-act { font-weight: 600; color: #2d3748; margin: 5px 0; display: block; font-size: 1.05em; }
+    .note-res { font-size: 14px; color: #4a5568; line-height: 1.5; font-style: italic; }
     
-    .empty { text-align: center; padding: 100px; color: #999; }
+    .error-box { background: #fff5f5; color: #c53030; padding: 20px; border-radius: 10px; border: 1px solid #feb2b2; max-width: 600px; margin: 50px auto; }
 </style>
 """
 
 @app.route('/')
-def visor_principal():
-    # Obtener registros ordenados por fecha descendente
-    registros = list(puntos_col.find().sort([("fecha", -1), ("nombre", 1)]))
-    
-    if not registros:
-        return render_template_string(f"<html><head>{CSS}</head><body><div class='empty'>No hay registros en la base de datos.</div></body></html>")
+def visor_total():
+    try:
+        # Intentar conectar a MongoDB
+        MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://ANDRES_VANEGAS:CF32fUhOhrj70dY5@cluster0.dtureen.mongodb.net/?appName=Cluster0")
+        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+        db = client['NestleDB']
+        puntos_col = db['Adminidtrativo']
+        
+        # Obtener todos los registros (orden: fecha más reciente primero)
+        registros = list(puntos_col.find().sort([("fecha", -1), ("nombre", 1)]))
+        
+        if not registros:
+            return render_template_string(f"<html><head>{CSS}</head><body><div style='text-align:center; padding:100px;'><h3>Base de datos vacía</h3><p>No se encontraron registros en 'Adminidtrativo'.</p></div></body></html>")
 
-    # Agrupación por Fecha -> Cédula
-    data_agrupada = {}
-    for r in registros:
-        # Extraer fecha y hora
-        f_raw = r.get('fecha', '2026-01-01 00:00:00')
-        dia = f_raw.split(' ')[0]
-        hora = f_raw.split(' ')[1] if ' ' in f_raw else "00:00"
-        
-        if dia not in data_agrupada: data_agrupada[dia] = {}
-        
-        ced = r.get('cedula', '000')
-        if ced not in data_agrupada[dia]:
-            data_agrupada[dia][ced] = {
-                "nombre": r.get('nombre', 'Usuario Desconocido'),
-                "foto": r.get('foto'),
-                "registros": []
-            }
-        
-        data_agrupada[dia][ced]["registros"].append({
-            "hora": hora,
-            "actividad": r.get('actividad', 'N/A'),
-            "resumen": r.get('resumen', 'N/A')
-        })
+        # Agrupar por Día -> Cédula
+        data_final = {}
+        for r in registros:
+            f_full = r.get('fecha', '2026-01-01 00:00:00')
+            # Manejar si la fecha ya es un string o un objeto datetime
+            str_fecha = f_full if isinstance(f_full, str) else f_full.strftime("%Y-%m-%d %H:%M:%S")
+            dia = str_fecha.split(' ')[0]
+            hora = str_fecha.split(' ')[1] if ' ' in str_fecha else "00:00"
+            
+            if dia not in data_final: data_final[dia] = {}
+            
+            ced = r.get('cedula', 'S/N')
+            if ced not in data_final[dia]:
+                data_final[dia][ced] = {
+                    "nombre": r.get('nombre', 'Desconocido'),
+                    "foto": r.get('foto'),
+                    "items": []
+                }
+            
+            data_final[dia][ced]["items"].append({
+                "hora": hora,
+                "actividad": r.get('actividad', 'Sin actividad'),
+                "resumen": r.get('resumen', 'Sin resumen')
+            })
 
-    # Construcción HTML
-    html = f"<html><head><meta name='viewport' content='width=device-width, initial-scale=1'>{CSS}</head><body>"
-    html += "<div class='header'><h1>📊 Visor de Base de Datos - Nestlé</h1></div>"
+        # Construir la interfaz
+        html = f"<html><head><meta name='viewport' content='width=device-width, initial-scale=1'>{CSS}</head><body>"
+        html += "<div class='header'><h1>REPORTES ADMINISTRATIVOS NESTLÉ</h1></div>"
 
-    for dia, personas in data_agrupada.items():
-        html += f"<div class='fecha-section'><div class='fecha-badge'>📅 {dia}</div>"
-        html += "<div class='grid'>"
-        
-        for ced, info in personas.items():
-            foto_src = info['foto'] if info['foto'] else "https://via.placeholder.com/400x300?text=Sin+Foto"
-            html += f"""
-            <div class='card'>
-                <div class='img-container'>
-                    <img src='{foto_src}' loading='lazy'>
-                    <div class='overlay-name'>
-                        <b>{info['nombre']}</b>
-                        <span>Cédula: {ced}</span>
-                    </div>
-                </div>
-                <div class='content'>
-            """
-            for reg in info['registros']:
+        for dia, personas in data_final.items():
+            html += f"<div class='fecha-badge'>📅 {dia}</div>"
+            html += "<div class='grid'>"
+            
+            for ced, info in personas.items():
+                foto_url = info['foto'] if info['foto'] else "https://via.placeholder.com/400x300?text=Sin+Selfie"
                 html += f"""
-                    <div class='entry'>
-                        <span class='entry-time'>🕒 {reg['hora']}</span>
-                        <span class='entry-act'>{reg['actividad']}</span>
-                        <span class='entry-res'>{reg['resumen']}</span>
+                <div class='card'>
+                    <div class='img-box'>
+                        <img src='{foto_url}' loading='lazy'>
+                        <div class='name-tag'>
+                            <b>{info['nombre']}</b>
+                            <span>CC: {ced}</span>
+                        </div>
                     </div>
+                    <div class='notes'>
                 """
-            html += "</div></div>"
+                for item in info['items']:
+                    html += f"""
+                        <div class='note-row'>
+                            <span class='note-time'>🕒 {item['hora']}</span>
+                            <span class='note-act'>{item['actividad']}</span>
+                            <span class='note-res'>"{item['resumen']}"</span>
+                        </div>
+                    """
+                html += "</div></div>"
+            html += "</div>"
         
-        html += "</div></div>"
-    
-    html += "</body></html>"
-    return render_template_string(html)
+        html += "</body></html>"
+        return render_template_string(html)
+
+    except Exception as e:
+        # Esto atrapará el error 500 y te dirá qué pasó (IP bloqueada, mala URI, etc.)
+        return render_template_string(f"""
+        <html><head>{CSS}</head><body>
+            <div class='error-box'>
+                <h2>❌ Error de Conexión</h2>
+                <p>No se pudo conectar a MongoDB. Revisa lo siguiente:</p>
+                <ul>
+                    <li>Que tu IP esté autorizada en MongoDB Atlas (Network Access -> 0.0.0.0/0).</li>
+                    <li>Que la contraseña en la URI sea correcta.</li>
+                </ul>
+                <hr>
+                <small>Detalle técnico: {str(e)}</small>
+            </div>
+        </body></html>
+        """)
 
 if __name__ == "__main__":
-    # Render usa gunicorn, pero para pruebas locales:
-    app.run(host='0.0.0.0', port=5000)
+    app.run()
